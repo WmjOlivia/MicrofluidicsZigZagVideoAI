@@ -13,7 +13,7 @@ from keras.losses import SparseCategoricalCrossentropy
 from keras.layers import Rescaling, TimeDistributed, Dense, GlobalAveragePooling3D, Dropout
 
 import plots
-from video_processor import get_videos, save_video_labels_to_file, process_dataset
+from video_processor import get_videos, save_video_labels_to_file, process_dataset, get_dataset
 
 
 def logPrint(msg):
@@ -24,6 +24,7 @@ def logPrint(msg):
 def main():
     videos = 200
     epochs = 100
+    video_index = 750 
 
     if len(sys.argv) < 2:
         print("Usage: {} FA or DA or GA or MIX [-q]".format(sys.argv[0]))
@@ -46,10 +47,11 @@ def main():
                         level=logging.INFO,
                         format='%(message)s')
 
-    train_index = int(videos * 0.5)
-    val_index = int(train_index + 50)
-    test_index = int(val_index + 50)
-    video_index = int((train_index + val_index + test_index) // 2)
+    # train_index = int(videos * 0.5)
+    # val_index = int(train_index + 50)
+    # test_index = int(val_index + 50)
+    # video_index = int((train_index + val_index + test_index) // 2)
+    
 
     # Disable logging messages
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
@@ -78,6 +80,8 @@ def main():
     logPrint("")
     logPrint("{} training videos and {} epochs chosen.".format(int(videos), int(epochs)))
     logPrint("")
+
+   
 
     # Define the native and modified paths
     native_paths = [
@@ -111,60 +115,11 @@ def main():
 
     native_videos, native_labels = get_videos(selected_native_paths, label=1, num_videos=video_index)
     modified_videos, modified_labels = get_videos(selected_modified_paths, label=0, num_videos=video_index)
-
-    # Split the videos and labels into train, validation, and test sets.
-    train_native_videos, train_native_labels = native_videos[:train_index], native_labels[:train_index]
-    train_modified_videos, train_modified_labels = modified_videos[:train_index], modified_labels[:train_index]
-
-    val_native_videos, val_native_labels = native_videos[train_index:val_index], native_labels[train_index:val_index]
-    val_modified_videos, val_modified_labels = modified_videos[train_index:val_index], modified_labels[train_index:val_index]
-
-    test_native_videos, test_native_labels = native_videos[val_index:test_index], native_labels[val_index:test_index]
-    test_modified_videos, test_modified_labels = modified_videos[val_index:test_index], modified_labels[val_index:test_index]
-
-    # Save videos and labels
-    save_video_labels_to_file(os.path.join(log_directory, "train_videos.txt"), train_native_videos + train_modified_videos,
-                              train_native_labels + train_modified_labels)
-    save_video_labels_to_file(os.path.join(log_directory, "val_videos.txt"), val_native_videos + val_modified_videos,
-                              val_native_labels + val_modified_labels)
-    save_video_labels_to_file(os.path.join(log_directory, "test_videos.txt"), test_native_videos + test_modified_videos,
-                              test_native_labels + test_modified_labels)
-
-    # Split the dataset into train, validation, and test sets.
-    train_videos_tensor, train_labels_tensor, train_vid_paths = process_dataset(train_native_videos,
-                                                                                train_modified_videos,
-                                                                                train_native_labels,
-                                                                                train_modified_labels)
-    val_videos_tensor, val_labels_tensor, val_vid_paths = process_dataset(val_native_videos,
-                                                                          val_modified_videos,
-                                                                          val_native_labels,
-                                                                          val_modified_labels)
-    test_videos_tensor, test_labels_tensor, test_vid_paths = process_dataset(test_native_videos,
-                                                                             test_modified_videos,
-                                                                             test_native_labels,
-                                                                             test_modified_labels)
-
-    # Process the dataset into a form that can be used by the model
-    autotune = tf.data.experimental.AUTOTUNE
-
-    train_dataset = tf.data.Dataset.zip((train_videos_tensor, train_labels_tensor))
-    train_dataset.cache().shuffle(10).prefetch(buffer_size=autotune)
-    train_dataset = train_dataset.batch(1)
-
-    val_dataset = tf.data.Dataset.zip((val_videos_tensor, val_labels_tensor))
-    val_dataset.cache().prefetch(buffer_size=autotune)
-    val_dataset = val_dataset.batch(1)
-
-    test_dataset = tf.data.Dataset.zip((test_videos_tensor, test_labels_tensor))
-    test_dataset.cache().prefetch(buffer_size=autotune)
-    test_dataset = test_dataset.batch(1)
-
-    # ----------------------------------- #
-
+    
+    #-------------------from--------------------#
     # Load the EfficientNetB0 model without the top layer
     base_model = EfficientNetB0(include_top=False)
     base_model.trainable = False
-
     # Create a sequential model
     model = Sequential([
         # Rescaling the input to the range [0, 1]
@@ -181,30 +136,56 @@ def main():
 
     # Compile the model
     model.compile(optimizer='adam',
-                  loss=SparseCategoricalCrossentropy(from_logits=True),
-                  metrics=['accuracy'])
+                loss=SparseCategoricalCrossentropy(from_logits=True),
+                metrics=['accuracy'])
 
     csv_logger = tf.keras.callbacks.CSVLogger(os.path.join(log_directory, "model_fit.tsv"), separator="\t")
 
-    # Fit the model to the training dataset and validation data
-    history = model.fit(train_dataset, epochs=epochs, validation_data=val_dataset, callbacks=[csv_logger])
+    num_repetitions = 4
+    times = 0 # Indicates that the 'times'th cycle is in progress
+    # Repeat 'num_repetitions' times using the for loop
+    for i in range(num_repetitions):
+        start_index = int(videos * times)
+        logPrint("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+_+-+-+times:"+str(times)+"start_index,:"+str(start_index))
+        times += 1
+        # Pass different indexes and label lists in each iteration
+        train_idx = int(start_index + 100)
+        val_idx = int(train_idx + 50)
+        # test_idx = int(val_idx + 50)
+        # Here can modify the train as needed_ Idx, val_ Idx and test_ Idx, such as using different random partitions
+        # Call get_ Dataset function, passing different parameters
+        # train_dataset, val_dataset, test_dataset, test_videos_tensor, test_vid_paths = get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index,train_idx, val_idx, test_idx, log_directory)
+        train_dataset, val_dataset = get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index,train_idx, val_idx, test_idx, log_directory)
+        # Fit the model to the training dataset and validation data
+        history = model.fit(train_dataset, epochs=epochs, validation_data=val_dataset, callbacks=[csv_logger])
+        
+        # Print the final accuracy
+        final_accuracy = history.history['accuracy'][-1] * 100
+        final_val_accuracy = history.history['val_accuracy'][-1] * 100
+        logPrint("")
+        logPrint("{} training accuracy: {:.2f}%".format(option, final_accuracy))
+        logPrint("{} validation accuracy: {:.2f}%".format(option, final_val_accuracy))
+        logPrint("")
 
-    # Print the final accuracy
-    final_accuracy = history.history['accuracy'][-1] * 100
-    final_val_accuracy = history.history['val_accuracy'][-1] * 100
-    logPrint("")
-    logPrint("{} training accuracy: {:.2f}%".format(option, final_accuracy))
-    logPrint("{} validation accuracy: {:.2f}%".format(option, final_val_accuracy))
-    logPrint("")
+        # Get the training accuracy and validation accuracy from the history object
+        training_accuracy = history.history['accuracy']
+        validation_accuracy = history.history['val_accuracy']
 
-    # Get the training accuracy and validation accuracy from the history object
-    training_accuracy = history.history['accuracy']
-    validation_accuracy = history.history['val_accuracy']
+        # Get the training loss and validation loss from the history object
+        training_loss = history.history['loss']
+        validation_loss = history.history['val_loss']
 
-    # Get the training loss and validation loss from the history object
-    training_loss = history.history['loss']
-    validation_loss = history.history['val_loss']
-
+       
+        del(train_dataset)
+        del(val_dataset)
+        
+    
+    # --------------------to--------------- #
+    
+    start_test_index = int(video_index - 100)
+    test_idx = int(video_index)
+    logPrint("get test from :"+str(start_test_index)+" to "+str(test_idx))
+    test_dataset, test_videos_tensor, test_vid_paths = get_test_dataset(native_videos, modified_videos, native_labels, modified_labels, start_test_index, test_index, log_directory)
     # Test the model on the test dataset
     test_loss, test_accuracy = model.evaluate(test_dataset)
 
@@ -221,9 +202,8 @@ def main():
 
     # Call the plot_predictions function
     plots.plot_predictions(predictions, test_videos_tensor, test_vid_paths)
-
-    # Saves the model
-    model.save(os.path.join(log_directory,'keras.model'))
+    del(test_dataset)
+    del(test_videos_tensor)
 
     logging.shutdown()
 
