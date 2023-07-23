@@ -54,8 +54,7 @@ def process_dataset(native_videos, modified_videos, native_labels, modified_labe
     processed_videos = np.concatenate([processed_native_videos, processed_modified_videos], axis=0)
     processed_videos = processed_videos.astype(np.float32) / 255.0
     processed_videos = tf.data.Dataset.from_tensor_slices(processed_videos)
-
-    # Use the provided labels.
+     # Use the provided labels.
     labels = np.concatenate([native_labels, modified_labels], axis=0)
     labels = labels.astype(np.int16)
     labels = tf.data.Dataset.from_tensor_slices(labels)
@@ -107,7 +106,7 @@ def process_videos(videos):
             # Skip the first and last 10 frames.
             if 50 < frame_count <= 150:
                 # Skip every other frame.
-                if frame_count % 10 == 0:
+                if frame_count % 2 == 0:
                     video_frames.append(processed_frame)
 
         # Close the video file.
@@ -124,12 +123,12 @@ def process_videos(videos):
         video_frames = np.array(video_frames)[..., [2, 1, 0]]
         video_frames = np.maximum(video_frames, 0)
         processed_videos.append(np.stack(video_frames, axis=0))
-
+        del video_frames
     # Return the processed videos, video paths, and their labels.
     return processed_videos, video_paths
 
 # Processing videos and frames, obtaining datasets
-def get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index, train_index, val_index, test_index, log_directory):
+def get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index, train_index, val_index, log_directory):
     # Split the videos and labels into train, validation, and test sets.
     train_native_videos, train_native_labels = native_videos[start_index:train_index], native_labels[start_index:train_index]
     train_modified_videos, train_modified_labels = modified_videos[start_index:train_index], modified_labels[start_index:train_index]
