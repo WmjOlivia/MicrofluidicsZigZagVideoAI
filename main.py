@@ -145,11 +145,11 @@ def main():
     # Repeat 'num_repetitions' times using the for loop
     for i in range(num_repetitions):
         start_index = int(videos * times)
-        logPrint("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+_+-+-+times:"+str(times)+",start_index:"+str(start_index))
+        logPrint("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+_+-+-+times: "+str(times)+", start_index: "+str(start_index))
         times += 1
         # Pass different indexes and label lists in each iteration
         train_idx = int(start_index + videos) # processing train video each time
-        val_idx = int(train_idx + 50) # pocessing  valid video each time
+        val_idx = int(train_idx + videos//2) # pocessing  valid video each time
         # test_idx = int(val_idx + 50)
         # Here can modify the train as needed_ Idx, val_ Idx and test_ Idx, such as using different random partitions
         # Call get_ Dataset function, passing different parameters
