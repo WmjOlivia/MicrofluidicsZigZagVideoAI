@@ -21,6 +21,59 @@ def save_values_to_json(values_dict, json_file_path):
     with open(file_path, 'w') as json_file:
         json.dump(values_dict, json_file, indent=2)
 
+def plot_accuracy_and_loss_all_history(histories):
+    # Create a figure with two subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    # Predefined color list
+    color_list = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+    for i, history in enumerate(histories):
+        # Get the training accuracy and validation accuracy from the history object
+        training_accuracy = history.history['accuracy']
+        validation_accuracy = history.history['val_accuracy']
+
+        # Get the training loss and validation loss from the history object
+        training_loss = history.history['loss']
+        validation_loss = history.history['val_loss']
+        epochs = range(1, len(training_accuracy) + 1)
+
+        # Get the color for this run from the predefined list
+        color = color_list[i % len(color_list)]
+
+        # Plot the training accuracy on the first subplot
+        ax1.plot(epochs, training_accuracy,color, label=f'Training acc. - RunTime {i+1}')
+        ax1.plot(epochs, validation_accuracy,color+'--', label=f'Validation acc. - RunTime {i+1}')
+
+        # Plot the training loss on the second subplot
+        ax2.plot(epochs, training_loss, label=f'Training loss - RunTime {i+1}')
+        ax2.plot(epochs, validation_loss, label=f'Validation loss - RunTime {i+1}')
+
+    ax1.set_title('Accuracy: Training vs Validation', fontsize=20)
+    ax1.set_xlabel('Epochs', fontsize=16)
+    ax1.set_ylabel('Accuracy', fontsize=16)
+    ax1.legend(fontsize=12)
+
+    ax2.set_title('Loss: Training vs Validation', fontsize=20)
+    ax2.set_xlabel('Epochs', fontsize=16)
+    ax2.set_ylabel('Loss', fontsize=16)
+    ax2.legend(fontsize=12)
+
+    # Adjust the spacing between subplots
+    plt.subplots_adjust(wspace=0.3)
+
+    # Save the plot as an EPS file
+    fig.savefig(os.path.join(save_directory, 'accuracy_and_loss_plot.eps'), format='eps')
+
+    # Save the values as a JSON file
+    values_dict = {'accuracy_and_loss': {}}
+    for i, history in enumerate(histories):
+        values_dict['accuracy_and_loss'][f'RunTime_{i+1}'] = {
+            'training_accuracy': history['training_accuracy'],
+            'validation_accuracy': history['validation_accuracy'],
+            'training_loss': history['training_loss'],
+            'validation_loss': history['validation_loss']
+        }
+    save_values_to_json(values_dict, 'accuracy_and_loss_values.json')
+
 
 def plot_accuracy_and_loss(training_accuracy, validation_accuracy, training_loss, validation_loss):
     epochs = range(1, len(training_accuracy) + 1)

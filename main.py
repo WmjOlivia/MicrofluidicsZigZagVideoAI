@@ -23,7 +23,7 @@ def logPrint(msg):
 
 def main():
     videos = 200 # video num each time
-    epochs = 100 # epoch
+    epochs = 10 # epoch
     video_index = 3000 # 
 
     if len(sys.argv) < 2:
@@ -142,41 +142,17 @@ def main():
 
     num_repetitions = 15
     times = 0 # Indicates that the 'times'th cycle is in progress
+    all_history = []
+
     # Repeat 'num_repetitions' times using the for loop
     for i in range(num_repetitions):
         start_index = int(videos * times)
         logPrint("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+_+-+-+times: "+str(times)+", start_index: "+str(start_index))
-        times += 1
         # Pass different indexes and label lists in each iteration
-        train_idx = int(start_index + videos) # processing train video each time
-        val_idx = int(train_idx + videos//2) # pocessing  valid video each time
-        # test_idx = int(val_idx + 50)
-        # Here can modify the train as needed_ Idx, val_ Idx and test_ Idx, such as using different random partitions
-        # Call get_ Dataset function, passing different parameters
-        # train_dataset, val_dataset, test_dataset, test_videos_tensor, test_vid_paths = get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index,train_idx, val_idx, test_idx, log_directory)
-        train_dataset, val_dataset = get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index,train_idx, val_idx, log_directory)
-        # Fit the model to the training dataset and validation data
-        history = model.fit(train_dataset, epochs=epochs, validation_data=val_dataset, callbacks=[csv_logger])
-        
-        # Print the final accuracy
-        final_accuracy = history.history['accuracy'][-1] * 100
-        final_val_accuracy = history.history['val_accuracy'][-1] * 100
-        logPrint("")
-        logPrint("{} training accuracy: {:.2f}%".format(option, final_accuracy))
-        logPrint("{} validation accuracy: {:.2f}%".format(option, final_val_accuracy))
-        logPrint("")
+        history = fit_once(videos, epochs, option, log_directory, native_videos, native_labels, modified_videos, modified_labels, model, csv_logger, start_index)
 
-        # Get the training accuracy and validation accuracy from the history object
-        training_accuracy = history.history['accuracy']
-        validation_accuracy = history.history['val_accuracy']
-
-        # Get the training loss and validation loss from the history object
-        training_loss = history.history['loss']
-        validation_loss = history.history['val_loss']
-
-       
-        del(train_dataset)
-        del(val_dataset)
+        times += 1
+        all_history.append(history)
         
     
     # --------------------to--------------- #
@@ -193,7 +169,8 @@ def main():
     logPrint("")
 
     # Call the plot_accuracy_and_loss function
-    plots.plot_accuracy_and_loss(training_accuracy, validation_accuracy, training_loss, validation_loss)
+    plots.plot_accuracy_and_loss_all_history(all_history)
+    # plots.plot_accuracy_and_loss(training_accuracy, validation_accuracy, training_loss, validation_loss)
 
     # Make predictions on the test dataset
     predictions = model.predict(test_dataset)
@@ -214,6 +191,29 @@ def main():
             return
 
     plt.show()
+
+def fit_once(videos, epochs, option, log_directory, native_videos, native_labels, modified_videos, modified_labels, model, csv_logger, start_index):
+    train_idx = int(start_index + videos) # processing train video each time
+    val_idx = int(train_idx + videos//2) # pocessing  valid video each time
+        # test_idx = int(val_idx + 50)
+        # Here can modify the train as needed_ Idx, val_ Idx and test_ Idx, such as using different random partitions
+        # Call get_ Dataset function, passing different parameters
+        # train_dataset, val_dataset, test_dataset, test_videos_tensor, test_vid_paths = get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index,train_idx, val_idx, test_idx, log_directory)
+    train_dataset, val_dataset = get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index,train_idx, val_idx, log_directory)
+        # Fit the model to the training dataset and validation data
+    history = model.fit(train_dataset, epochs=epochs, validation_data=val_dataset, callbacks=[csv_logger])
+        
+        # Print the final accuracy
+    final_accuracy = history.history['accuracy'][-1] * 100
+    final_val_accuracy = history.history['val_accuracy'][-1] * 100
+    logPrint("")
+    logPrint("{} training accuracy: {:.2f}%".format(option, final_accuracy))
+    logPrint("{} validation accuracy: {:.2f}%".format(option, final_val_accuracy))
+    logPrint("")       
+       
+    del(train_dataset)
+    del(val_dataset)
+    return history
 
 
 if __name__ == "__main__":
