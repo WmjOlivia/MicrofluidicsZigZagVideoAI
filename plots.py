@@ -25,8 +25,24 @@ def plot_accuracy_and_loss_all_history(histories):
     # Create a figure with two subplots
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
     # Predefined color list
-    color_list = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+    # color_list = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+    # Save the values as a JSON file
+    values_dict = {'accuracy_and_loss': {}}
+    lens = 1
+    ax1.plot([], [], 'r', label=f'Training acc.')
+    ax1.plot([], [], 'b', label=f'Validation acc.')
+
+    # Plot the training loss on the second subplot
+    ax2.plot([], [], 'r', label=f'Training loss')
+    ax2.plot([], [], 'b', label=f'Validation loss')
+    
+    last_trainAcc = 0
+    last_ValAcc = 0
+
+    last_trainLoss = 0
+    last_Valoss = 0
     for i, history in enumerate(histories):
+        
         # Get the training accuracy and validation accuracy from the history object
         training_accuracy = history.history['accuracy']
         validation_accuracy = history.history['val_accuracy']
@@ -34,19 +50,44 @@ def plot_accuracy_and_loss_all_history(histories):
         # Get the training loss and validation loss from the history object
         training_loss = history.history['loss']
         validation_loss = history.history['val_loss']
-        epochs = range(1, len(training_accuracy) + 1)
-
+        epochs = range(lens, len(training_accuracy) + lens)
+        
         # Get the color for this run from the predefined list
-        color = color_list[i % len(color_list)]
-
+        # color = color_list[i % len(color_list)]
+        
+        if i >0 and i < len(histories) - 1:
+            # Line Connecting Two Points
+            ax1.plot([lens, lens], [last_trainAcc, training_accuracy[0]], 'r--')
+            ax1.plot([lens, lens], [last_ValAcc, validation_accuracy[0]],'b--')
+            
+            # Plot the training loss on the second subplot
+            # x2 = [lens,lens]
+            # y2_train = [last_trainLoss,training_loss]
+            # y2_val = [last_Valoss,validation_loss]
+            ax2.plot([lens, lens], [last_trainLoss, training_loss[0]], 'r--')
+            ax2.plot([lens, lens], [last_Valoss, validation_loss[0]], 'b--')
+            
+        lens = len(training_accuracy) + lens-1
+        last_trainAcc = training_accuracy[len(training_accuracy)-1]
+        last_ValAcc = validation_accuracy[len(validation_accuracy)-1]
+        last_trainLoss = training_loss[len(training_loss)-1]
+        last_Valoss = validation_loss[len(validation_loss)-1]
         # Plot the training accuracy on the first subplot
-        ax1.plot(epochs, training_accuracy,color, label=f'Training acc. - RunTime {i+1}')
-        ax1.plot(epochs, validation_accuracy,color+'--', label=f'Validation acc. - RunTime {i+1}')
+        ax1.plot(epochs, training_accuracy,'r')
+        ax1.plot(epochs, validation_accuracy,'b')
 
         # Plot the training loss on the second subplot
-        ax2.plot(epochs, training_loss, label=f'Training loss - RunTime {i+1}')
-        ax2.plot(epochs, validation_loss, label=f'Validation loss - RunTime {i+1}')
-
+        ax2.plot(epochs, training_loss,'r')
+        ax2.plot(epochs, validation_loss,'b')
+        
+        values_dict['accuracy_and_loss'][f'RunTime_{i+1}'] = {
+            'training_accuracy': training_accuracy,
+            'validation_accuracy': validation_accuracy,
+            'training_loss': training_loss,
+            'validation_loss': validation_loss
+        }
+        
+    
     ax1.set_title('Accuracy: Training vs Validation', fontsize=20)
     ax1.set_xlabel('Epochs', fontsize=16)
     ax1.set_ylabel('Accuracy', fontsize=16)
@@ -62,16 +103,7 @@ def plot_accuracy_and_loss_all_history(histories):
 
     # Save the plot as an EPS file
     fig.savefig(os.path.join(save_directory, 'accuracy_and_loss_plot.eps'), format='eps')
-
-    # Save the values as a JSON file
-    values_dict = {'accuracy_and_loss': {}}
-    for i, history in enumerate(histories):
-        values_dict['accuracy_and_loss'][f'RunTime_{i+1}'] = {
-            'training_accuracy': history['training_accuracy'],
-            'validation_accuracy': history['validation_accuracy'],
-            'training_loss': history['training_loss'],
-            'validation_loss': history['validation_loss']
-        }
+    
     save_values_to_json(values_dict, 'accuracy_and_loss_values.json')
 
 

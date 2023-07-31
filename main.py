@@ -13,7 +13,7 @@ from keras.losses import SparseCategoricalCrossentropy
 from keras.layers import Rescaling, TimeDistributed, Dense, GlobalAveragePooling3D, Dropout
 
 import plots
-from video_processor import get_videos, save_video_labels_to_file, process_dataset, get_dataset, get_test_dataset
+from video_processor import get_videos, get_dataset, get_test_dataset, fit_once
 
 
 def logPrint(msg):
@@ -22,9 +22,10 @@ def logPrint(msg):
 
 
 def main():
-    videos = 200 # video num each time
+    videos = 50 # video num each time
     epochs = 10 # epoch
-    video_index = 3000 # 
+    video_index = 2200 # 
+    num_repetitions = 30
 
     if len(sys.argv) < 2:
         print("Usage: {} FA or DA or GA or MIX [-q]".format(sys.argv[0]))
@@ -140,7 +141,7 @@ def main():
 
     csv_logger = tf.keras.callbacks.CSVLogger(os.path.join(log_directory, "model_fit.tsv"), separator="\t")
 
-    num_repetitions = 15
+
     times = 0 # Indicates that the 'times'th cycle is in progress
     all_history = []
 
@@ -156,7 +157,7 @@ def main():
         
     
     # --------------------to--------------- #
-    start_test_index = int(video_index - 150)
+    start_test_index = int(video_index - 80)
     test_index = int(video_index-50)
     logPrint("get test from :"+str(start_test_index)+" to "+str(test_index))
     test_dataset, test_videos_tensor, test_vid_paths = get_test_dataset(native_videos, modified_videos, native_labels, modified_labels, start_test_index, test_index, log_directory)
@@ -191,29 +192,6 @@ def main():
             return
 
     plt.show()
-
-def fit_once(videos, epochs, option, log_directory, native_videos, native_labels, modified_videos, modified_labels, model, csv_logger, start_index):
-    train_idx = int(start_index + videos) # processing train video each time
-    val_idx = int(train_idx + videos//2) # pocessing  valid video each time
-        # test_idx = int(val_idx + 50)
-        # Here can modify the train as needed_ Idx, val_ Idx and test_ Idx, such as using different random partitions
-        # Call get_ Dataset function, passing different parameters
-        # train_dataset, val_dataset, test_dataset, test_videos_tensor, test_vid_paths = get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index,train_idx, val_idx, test_idx, log_directory)
-    train_dataset, val_dataset = get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index,train_idx, val_idx, log_directory)
-        # Fit the model to the training dataset and validation data
-    history = model.fit(train_dataset, epochs=epochs, validation_data=val_dataset, callbacks=[csv_logger])
-        
-        # Print the final accuracy
-    final_accuracy = history.history['accuracy'][-1] * 100
-    final_val_accuracy = history.history['val_accuracy'][-1] * 100
-    logPrint("")
-    logPrint("{} training accuracy: {:.2f}%".format(option, final_accuracy))
-    logPrint("{} validation accuracy: {:.2f}%".format(option, final_val_accuracy))
-    logPrint("")       
-       
-    del(train_dataset)
-    del(val_dataset)
-    return history
 
 
 if __name__ == "__main__":

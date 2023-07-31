@@ -106,7 +106,7 @@ def process_videos(videos):
             # Skip the first and last 10 frames.
             if 50 < frame_count <= 150:
                 # Skip every other frame.
-                if frame_count % 2 == 0:
+                if frame_count % 8 == 0:
                     video_frames.append(processed_frame)
 
         # Close the video file.
@@ -123,9 +123,37 @@ def process_videos(videos):
         video_frames = np.array(video_frames)[..., [2, 1, 0]]
         video_frames = np.maximum(video_frames, 0)
         processed_videos.append(np.stack(video_frames, axis=0))
-        del video_frames
     # Return the processed videos, video paths, and their labels.
     return processed_videos, video_paths
+
+def logPrint(msg):
+    logging.info(msg)
+    print(msg)
+
+def fit_once(videos, epochs, option, log_directory, native_videos, native_labels, modified_videos, modified_labels, model, csv_logger, start_index):
+    train_idx = int(start_index + videos) # processing train video each time
+    val_idx = int(train_idx + videos//2) # pocessing  valid video each time
+        # test_idx = int(val_idx + 50)
+        # Here can modify the train as needed_ Idx, val_ Idx and test_ Idx, such as using different random partitions
+        # Call get_ Dataset function, passing different parameters
+        # train_dataset, val_dataset, test_dataset, test_videos_tensor, test_vid_paths = get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index,train_idx, val_idx, test_idx, log_directory)
+    train_dataset, val_dataset = get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index,train_idx, val_idx, log_directory)
+        # Fit the model to the training dataset and validation data
+    history = model.fit(train_dataset, epochs=epochs, validation_data=val_dataset, callbacks=[csv_logger])
+        
+        # Print the final accuracy
+    final_accuracy = history.history['accuracy'][-1] * 100
+    final_val_accuracy = history.history['val_accuracy'][-1] * 100
+    logPrint("")
+    logPrint("{} training accuracy: {:.2f}%".format(option, final_accuracy))
+    logPrint("{} validation accuracy: {:.2f}%".format(option, final_val_accuracy))
+    logPrint("")       
+       
+    del(train_dataset)
+    del(val_dataset)
+    del(final_accuracy)
+    del(final_val_accuracy)
+    return history
 
 # Processing videos and frames, obtaining datasets
 def get_dataset(native_videos, modified_videos, native_labels, modified_labels, start_index, train_index, val_index, log_directory):
@@ -211,7 +239,7 @@ def get_test_dataset(native_videos, modified_videos, native_labels, modified_lab
     test_dataset.cache().prefetch(buffer_size=autotune)
     test_dataset = test_dataset.batch(1)
     
-    del(test_labels_tensor)
+    # del(test_labels_tensor)
 
 
     return test_dataset, test_videos_tensor, test_vid_paths
