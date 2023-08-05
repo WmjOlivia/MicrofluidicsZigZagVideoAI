@@ -13,7 +13,7 @@ from keras.losses import SparseCategoricalCrossentropy
 from keras.layers import Rescaling, TimeDistributed, Dense, GlobalAveragePooling3D, Dropout
 
 import plots
-from video_processor import get_videos, get_dataset, get_test_dataset, fit_once
+from video_processor import get_videos, get_test_dataset, fit_once, test_one
 
 
 def logPrint(msg):
@@ -22,11 +22,12 @@ def logPrint(msg):
 
 
 def main():
+    
     videos = 50 # video num each time
     epochs = 10 # epoch
-    video_index = 2200 # 
-    num_repetitions = 30
-
+    video_index = 1200 # FA 1450 /DA 1230  
+    num_repetitions = 20
+    # logPrint("repeat " + str(num_repetitions) + " times")
     if len(sys.argv) < 2:
         print("Usage: {} FA or DA or GA or MIX [-q]".format(sys.argv[0]))
         quit(0)
@@ -79,10 +80,8 @@ def main():
         gpu()
 
     logPrint("")
-    logPrint("{} training videos and {} epochs chosen.".format(int(videos), int(epochs)))
+    logPrint("{} training videos and {} epochs chosen.".format(int(videos * num_repetitions), int(epochs)))
     logPrint("")
-
-   
 
     # Define the native and modified paths
     native_paths = [
@@ -116,6 +115,12 @@ def main():
 
     native_videos, native_labels = get_videos(selected_native_paths, label=1, num_videos=video_index)
     modified_videos, modified_labels = get_videos(selected_modified_paths, label=0, num_videos=video_index)
+    print("-=-=-"+str(len(native_videos))+",-=-=-"+str(len(native_labels))+",-=-=-"+",-=-=-"+str(len(modified_videos))+",-=-=-"+",-=-=-"+str(len(modified_labels)))
+    
+    
+
+  
+    
     #-------------------from--------------------#
     # Load the EfficientNetB0 model without the top layer
     base_model = EfficientNetB0(include_top=False)
@@ -147,40 +152,59 @@ def main():
 
     # Repeat 'num_repetitions' times using the for loop
     for i in range(num_repetitions):
-        start_index = int(videos * times)
-        logPrint("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+_+-+-+times: "+str(times)+", start_index: "+str(start_index))
+        start_index = int(videos * i)
+        logPrint("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+_+-+-+times: "+str(i)+", start_index: "+str(start_index))
         # Pass different indexes and label lists in each iteration
         history = fit_once(videos, epochs, option, log_directory, native_videos, native_labels, modified_videos, modified_labels, model, csv_logger, start_index)
-
-        times += 1
         all_history.append(history)
-        
-    
-    # --------------------to--------------- #
-    start_test_index = int(video_index - 80)
-    test_index = int(video_index-50)
-    logPrint("get test from :"+str(start_test_index)+" to "+str(test_index))
-    test_dataset, test_videos_tensor, test_vid_paths = get_test_dataset(native_videos, modified_videos, native_labels, modified_labels, start_test_index, test_index, log_directory)
-    # Test the model on the test dataset
-    test_loss, test_accuracy = model.evaluate(test_dataset)
-
-    # Print the test accuracy
-    logPrint("")
-    logPrint("{} test accuracy: {:.2f}%".format(option, test_accuracy * 100))
-    logPrint("")
-
+    logPrint("start to call plot_accuracy_and_loss_all_history...")
     # Call the plot_accuracy_and_loss function
     plots.plot_accuracy_and_loss_all_history(all_history)
     # plots.plot_accuracy_and_loss(training_accuracy, validation_accuracy, training_loss, validation_loss)
+    logPrint("plot_accuracy_and_loss_all_history finished.")
+    
+    # --------------------to--------------- #
+   # --------------------test from--------------- #
+    test_accuracy_list = []
+    predictions_list = []
+    test_videos_tensor_list = []
+    test_vid_paths_list = []
+    num_test_repetitions = 5 
+    test_num = 20 # test 20 videos each time
+    for i in range(num_test_repetitions):
+        test_accuracy_list,predictions_list,test_videos_tensor_list,test_vid_paths_list,num_test_repetitions
+        start_test_index = int(len(native_videos) - test_num*(i+1))
+        test_index = int(len(native_videos)- test_num*i)
+        logPrint("-+-+-+-+-+-+-+-test_times: "+str(i)+", get test from : "+str(start_test_index)+" to "+str(test_index)+"-+-+-+-+-+-+-+-")
+        test_videos_tensor, test_vid_paths, test_accuracy, predictions = test_one(log_directory, native_videos, native_labels, modified_videos, modified_labels, model, start_test_index, test_index)
 
-    # Make predictions on the test dataset
-    predictions = model.predict(test_dataset)
+        test_accuracy_list.append(test_accuracy)
+        predictions_list.append(predictions)
+        test_videos_tensor_list.append(test_videos_tensor)
+        test_vid_paths_list.append(test_vid_paths)
+        
+
+    # get accurancy
+    total_accuracy = sum(test_accuracy_list)
+    average_accuracy = total_accuracy / len(test_accuracy_list)
+    del(test_accuracy_list)
+
+    # Print the test accuracy
+    logPrint("")
+    logPrint("{} test accuracy: {:.2f}%".format(option, average_accuracy * 100))
+    logPrint("")
+
 
     # Call the plot_predictions function
-    plots.plot_predictions(predictions, test_videos_tensor, test_vid_paths)
-    del(test_dataset)
+    # plots.plot_predictions(predictions, test_videos_tensor, test_vid_paths)
+    plots.plot_multiple_predictions(predictions_list, test_videos_tensor_list, test_vid_paths_list)
     del(test_videos_tensor)
+    del(predictions_list)
+    del(test_videos_tensor_list)
+    del(test_vid_paths_list)
+    # --------------------test to--------------- #
 
+   
     logging.shutdown()
 
     print("")
