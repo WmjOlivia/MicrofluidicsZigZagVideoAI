@@ -57,15 +57,15 @@ def plot_accuracy_and_loss_all_history(histories):
         
         if i >0 and i < len(histories) - 1:
             # Line Connecting Two Points
-            ax1.plot([lens, lens], [last_trainAcc, training_accuracy[0]], 'r--')
-            ax1.plot([lens, lens], [last_ValAcc, validation_accuracy[0]],'b--')
+            ax1.plot([lens, lens], [last_trainAcc, training_accuracy[0]], 'b--')
+            ax1.plot([lens, lens], [last_ValAcc, validation_accuracy[0]],'r--')
             
             # Plot the training loss on the second subplot
             # x2 = [lens,lens]
             # y2_train = [last_trainLoss,training_loss]
             # y2_val = [last_Valoss,validation_loss]
-            ax2.plot([lens, lens], [last_trainLoss, training_loss[0]], 'r--')
-            ax2.plot([lens, lens], [last_Valoss, validation_loss[0]], 'b--')
+            ax2.plot([lens, lens], [last_trainLoss, training_loss[0]], 'b--')
+            ax2.plot([lens, lens], [last_Valoss, validation_loss[0]], 'r--')
             
         lens = len(training_accuracy) + lens-1
         last_trainAcc = training_accuracy[len(training_accuracy)-1]
@@ -73,12 +73,12 @@ def plot_accuracy_and_loss_all_history(histories):
         last_trainLoss = training_loss[len(training_loss)-1]
         last_Valoss = validation_loss[len(validation_loss)-1]
         # Plot the training accuracy on the first subplot
-        ax1.plot(epochs, training_accuracy,'r')
-        ax1.plot(epochs, validation_accuracy,'b')
+        ax1.plot(epochs, training_accuracy,'b')
+        ax1.plot(epochs, validation_accuracy,'r')
 
         # Plot the training loss on the second subplot
-        ax2.plot(epochs, training_loss,'r')
-        ax2.plot(epochs, validation_loss,'b')
+        ax2.plot(epochs, training_loss,'b')
+        ax2.plot(epochs, validation_loss,'r')
         
         values_dict['accuracy_and_loss'][f'RunTime_{i+1}'] = {
             'training_accuracy': training_accuracy,
@@ -281,6 +281,101 @@ def plot_multiple_predictions(predictions_list, test_videos_tensor_list, test_vi
     print("plot_multiple_predictions end")
 
 def plot_predictions_new(predictions, test_videos_tensor_list, test_vid_paths):
+    print("---------get list_of_list:---------")
+    list_of_list = []
+
+    
+    # for test_videos_tensor in test_videos_tensor_list:
+    #     # Convert the test_videos_tensor to a NumPy array
+    #     test_videos_array = np.array(list(test_videos_tensor.as_numpy_iterator()))
+    #     print("1. getting array...")
+    #     # Convert the test_videos_array to a list
+    #     temp_list = test_videos_array.tolist()
+    #     print("2. getting list...")
+    #     list_of_list.append(temp_list)
+    #     print("3. appending array...")
+    # print("got list_of_list")
+    # test_videos_list = [item for sublist in list_of_list for item in sublist]    
+   
+    # Convert the predictions list to a TensorFlow tensor
+    predictions_tensor = tf.convert_to_tensor(predictions)
+
+    # Apply softmax to obtain probabilities
+    probabilities = tf.nn.softmax(predictions_tensor)
+
+    # Convert probabilities to a NumPy array
+    probabilities_array = probabilities.numpy()
+
+    # Normalize probabilities to ensure they total to 100%
+    normalized_probabilities = probabilities_array / np.sum(probabilities_array, axis=1, keepdims=True)
+
+    # Convert the probabilities to float32
+    normalized_probabilities = normalized_probabilities.astype(np.float32)
+
+    # Convert the probabilities to a list
+    probabilities_list = normalized_probabilities.tolist()
+
+    # Find the indices of the top ten healthy and ill probabilities
+    top_healthy_indices = np.argsort(probabilities_list, axis=0)[-10:, 1]
+    top_ill_indices = np.argsort(probabilities_list, axis=0)[-10:, 0]
+
+    # Extract the videos with the top ten healthy probabilities
+    top_healthy_videos = []
+    top_healthy_paths = []
+
+    lens = len(top_healthy_indices)
+    for test_videos_tensor in test_videos_tensor_list:
+        test_videos_array = np.array(list(test_videos_tensor.as_numpy_iterator()))
+        for healthy_video in test_videos_array:
+            if len(top_healthy_videos) < lens:
+                top_healthy_videos.append(healthy_video)
+            else:
+                break
+    
+
+    for i in top_healthy_indices:
+        # top_healthy_videos.append(test_videos_list[i])
+        top_healthy_paths.append(test_vid_paths[i])
+    # Extract the videos with the top ten ill probabilities
+    top_ill_videos = []
+    top_ill_paths = []
+    lens2 = len(top_ill_indices)
+    for test_videos_tensor in test_videos_tensor_list:
+        test_videos_array = np.array(list(test_videos_tensor.as_numpy_iterator()))
+        for ill_video in test_videos_array:
+            if len(top_ill_videos) < lens2:
+                top_ill_videos.append(ill_video)
+            else:
+                break
+    for i in top_ill_indices:
+        # top_ill_videos.append(test_videos_list[i])
+        top_ill_paths.append(test_vid_paths[i])
+
+    # Preprocess the videos and save the images
+    for i, video in enumerate(top_healthy_videos):
+        save_path = os.path.join(save_directory, f'{i + 1}_healthy_overlay.png')
+        overlay(video, save_path)
+
+    for i, video in enumerate(top_ill_videos):
+        save_path = os.path.join(save_directory, f'{i + 1}_ill_overlay.png')
+        overlay(video, save_path)
+
+    # Get the probabilities of being healthy and ill for the selected videos
+    top_healthy_probabilities = normalized_probabilities[top_healthy_indices][:, 1]
+    top_ill_probabilities = normalized_probabilities[top_ill_indices][:, 0]
+
+    # Create the bar charts for the top ten healthy videos
+    for i in range(len(top_healthy_videos)):
+        plot_bar_chart(top_healthy_probabilities[i], os.path.join(save_directory, f'{i + 1}_healthy_bar_chart.eps'),
+                       top_healthy_paths[i])
+
+    # Create the bar charts for the top ten ill videos
+    for i in range(len(top_ill_videos)):
+        reversed_probability = 1 - top_ill_probabilities[i]
+        plot_bar_chart(reversed_probability, os.path.join(save_directory, f'{i + 1}_ill_bar_chart.eps'),
+                       top_ill_paths[i])
+
+def plot_predictions_new_backup(predictions, test_videos_tensor_list, test_vid_paths):
     print("---------get list_of_list:---------")
     list_of_list = []
 

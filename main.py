@@ -14,7 +14,7 @@ from keras.layers import Rescaling, TimeDistributed, Dense, GlobalAveragePooling
 
 import plots
 from video_processor import get_videos, get_test_dataset, fit_once, test_one
-
+from datetime import datetime
 
 def logPrint(msg):
     logging.info(msg)
@@ -22,11 +22,10 @@ def logPrint(msg):
 
 
 def main():
-    
-    videos = 50 # video num each time
+    logPrint("start time:"+str(datetime.now()))
     epochs = 10 # epoch
     video_index = 1200 # FA 1450 /DA 1230  
-    num_repetitions = 20
+    videos_one_time = 50 # number of training videos each time
     # logPrint("repeat " + str(num_repetitions) + " times")
     if len(sys.argv) < 2:
         print("Usage: {} FA or DA or GA or MIX [-q]".format(sys.argv[0]))
@@ -80,7 +79,7 @@ def main():
         gpu()
 
     logPrint("")
-    logPrint("{} training videos and {} epochs chosen.".format(int(videos * num_repetitions), int(epochs)))
+    logPrint("{} training videos and {} epochs chosen.".format(int(video_index), int(epochs)))
     logPrint("")
 
     # Define the native and modified paths
@@ -147,21 +146,34 @@ def main():
     csv_logger = tf.keras.callbacks.CSVLogger(os.path.join(log_directory, "model_fit.tsv"), separator="\t")
 
 
-    times = 0 # Indicates that the 'times'th cycle is in progress
+    # !!!This 20 means that 20 videos of healthy cells and 20 videos of unhealthy cells will be trained for training,and 20//2=10 videos of healthy and 10 unhealthy cells will be used for verification.
+    
+    # videos = total_videos/
+    videos_train = 20
+    num_repetitions = 44 #total_train/(videos_train+videos_val) = 1100/(20+10) = 44
     all_history = []
-
+    all_train_accuracy = []
+    all_val_accuracy = []
     # Repeat 'num_repetitions' times using the for loop
     for i in range(num_repetitions):
-        start_index = int(videos * i)
-        logPrint("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+_+-+-+times: "+str(i)+", start_index: "+str(start_index))
+        start_index = int(int(videos_one_time//2)*i)
+        logPrint(str(i)+",train one time:"+str(datetime.now()))
         # Pass different indexes and label lists in each iteration
-        history = fit_once(videos, epochs, option, log_directory, native_videos, native_labels, modified_videos, modified_labels, model, csv_logger, start_index)
+        history, final_accuracy,final_val_accuracy = fit_once(videos_train, epochs, option, log_directory, native_videos, native_labels, modified_videos, modified_labels, model, csv_logger, start_index)
         all_history.append(history)
-    logPrint("start to call plot_accuracy_and_loss_all_history...")
-    # Call the plot_accuracy_and_loss function
-    plots.plot_accuracy_and_loss_all_history(all_history)
-    # plots.plot_accuracy_and_loss(training_accuracy, validation_accuracy, training_loss, validation_loss)
-    logPrint("plot_accuracy_and_loss_all_history finished.")
+        all_train_accuracy.append(final_accuracy)
+        all_val_accuracy.append(final_val_accuracy)
+
+    total_train_accuracy = sum(all_train_accuracy)
+    total_val_accuracy = sum(all_val_accuracy)
+    average_train_accuracy = total_train_accuracy / len(all_train_accuracy)
+    average_val_accuracy = total_val_accuracy / len(all_val_accuracy)
+    del(all_train_accuracy)   
+    del(all_val_accuracy)
+    logPrint("")
+    logPrint("{} training accuracy: {:.2f}%".format(option, average_train_accuracy))
+    logPrint("{} validation accuracy: {:.2f}%".format(option, average_val_accuracy))
+    logPrint("")       
     
     # --------------------to--------------- #
    # --------------------test from--------------- #
@@ -169,13 +181,14 @@ def main():
     predictions_list = []
     test_videos_tensor_list = []
     test_vid_paths_list = []
-    num_test_repetitions = 5 
-    test_num = 20 # test 20 videos each time
+    num_test_repetitions = 4 
+    test_num = 16 # test 10 videos each time
     for i in range(num_test_repetitions):
         test_accuracy_list,predictions_list,test_videos_tensor_list,test_vid_paths_list,num_test_repetitions
         start_test_index = int(len(native_videos) - test_num*(i+1))
         test_index = int(len(native_videos)- test_num*i)
-        logPrint("-+-+-+-+-+-+-+-test_times: "+str(i)+", get test from : "+str(start_test_index)+" to "+str(test_index)+"-+-+-+-+-+-+-+-")
+        logPrint("test one time:" + str(datetime.now()))
+        # logPrint("-+-+-+-+-+-+-+-test_times: "+str(i)+", get test from : "+str(start_test_index)+" to "+str(test_index)+"-+-+-+-+-+-+-+-")
         test_videos_tensor, test_vid_paths, test_accuracy, predictions = test_one(log_directory, native_videos, native_labels, modified_videos, modified_labels, model, start_test_index, test_index)
 
         test_accuracy_list.append(test_accuracy)
@@ -188,6 +201,10 @@ def main():
     total_accuracy = sum(test_accuracy_list)
     average_accuracy = total_accuracy / len(test_accuracy_list)
     del(test_accuracy_list)
+
+   
+    
+
 
     # Print the test accuracy
     logPrint("")
@@ -203,10 +220,16 @@ def main():
     del(test_videos_tensor_list)
     del(test_vid_paths_list)
     # --------------------test to--------------- #
-
+    model.save("models/model_{}_epochs_{}_videos_{}.h5".format(datetime.now(), epochs, video_index))
    
-    logging.shutdown()
+    logPrint("start to call plot_accuracy_and_loss_all_history...")
+    # Call the plot_accuracy_and_loss function
+    plots.plot_accuracy_and_loss_all_history(all_history)
+    # plots.plot_accuracy_and_loss(training_accuracy, validation_accuracy, trai>
+    logPrint("plot_accuracy_and_loss_all_history finished.")
 
+    logging.shutdown()
+    logPrint("end time:"+str(datetime.now()))
     print("")
     print("Finished.")
     print("")
